@@ -85,7 +85,7 @@ def get_config():
 
     cfg.train = config_dict.ConfigDict()
     cfg.train.seed = eval_seed
-    cfg.train.use_compile = True
+    cfg.train.use_compile = False
     cfg.train.compile_mode = "default"
     cfg.train.use_fp16 = True
     cfg.train.amp_dtype = "bf16"
@@ -111,11 +111,11 @@ def get_config():
 
     cfg.evaluation.use_amp = True
     cfg.evaluation.amp_dtype = "bf16"
-    cfg.evaluation.use_compile = True
+    cfg.evaluation.use_compile = False
     cfg.evaluation.compile_mode = "default"
     
     cfg.evaluation.compile = config_dict.ConfigDict()
-    cfg.evaluation.compile.warmup = True
+    cfg.evaluation.compile.warmup = False
     cfg.evaluation.compile.warmup_steps = 8
 
     cfg.evaluation.stochastic = config_dict.ConfigDict()
@@ -136,7 +136,7 @@ def get_config():
 
     def add_spec(*, target_nfe, ati_eta, stochastic_enabled, gamma_target=None, s_noise=1.003, qlo=0.0, qhi=1.0):
         spec = config_dict.ConfigDict()
-        spec.sampler_name = "ddim_entropic"
+        spec.sampler_name = "pi"
         spec.sc_refresh_modes = ["carry"]
         spec.target_nfes = [int(target_nfe)]
         spec.ati_etas = [float(ati_eta)]
@@ -170,7 +170,7 @@ def get_config():
     cfg.evaluation.external_ppl.attn_implementation = "sdpa"
     cfg.evaluation.external_ppl.num_samples = 1024
     cfg.evaluation.external_ppl.micro_batch_size = 512
-    cfg.evaluation.external_ppl.samplers = ["ddim_entropic"]
+    cfg.evaluation.external_ppl.samplers = ["pi"]
     cfg.evaluation.external_ppl.terminal_sigmas = [0.08]
     cfg.evaluation.external_ppl.guidance_scales = [0.0]
     cfg.evaluation.external_ppl.num_sampling_steps = 255
@@ -184,5 +184,19 @@ def get_config():
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_decode = True
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_max_rows = 8
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_once = True
+
+    cfg.pi_config = {
+        "tau_a": 0.06,
+        "tau_r": 2.2,
+        "alpha": 0.9,
+        "ki": 0.3,
+        "kp": 0.1,
+        "h_start": 20,
+        "max_decrease": 0.2,
+        "max_increase": 5,
+        "interval": (80, 0),
+        "max_iter": 1000
+    }
+    cfg.data_out = "data/text_data/pi_files/"
 
     return cfg

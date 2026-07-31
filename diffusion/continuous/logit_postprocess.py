@@ -149,6 +149,7 @@ def _model_logits_continuous(
       - binary mode: [B,S]
       - token mode:  [B,S,V]
     """
+    print(x_t.shape, sigma.shape, x0_hat.shape)
     logits_raw = model(x_t, sigma, x0_hat)
 
     return apply_continuous_logit_postprocessing(

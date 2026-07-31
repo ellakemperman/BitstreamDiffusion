@@ -12,6 +12,10 @@ from tqdm import tqdm
 from utils.ecc_secded import ecc_from_cfg, ecc_chunk_len
 from diffusion.continuous.logit_postprocess import _model_logits_continuous
 
+from pi_solvers.solver_lib import PISolver
+from pi_solvers.sde_lib import construct_churn_sde
+from pi_solvers.utils.data_logger import PIDataLogger
+
 
 def _normalize_sc_refresh_mode(mode: Optional[str]) -> str:
     mode = "refined" if mode is None else str(mode).lower()
@@ -1953,3 +1957,179 @@ class DDIMSampler:
 
         # Binary branch unchanged: return the final continuous state.
         return x
+
+
+# -----------------------------------------------------------------------------
+# Heun sampler
+# -----------------------------------------------------------------------------
+def broadcast_vector(vector: torch.Tensor, tensor: torch.Tensor) -> torch.Tensor:
+    return vector.view(tensor.shape[0], *([1] * (tensor.dim() - 1)))
+
+
+class PISampler:
+    """
+    Second-order ODE solver with:
+      - centering fix
+      - prompt conditioning
+      - CFG via fused 2B batching
+      - configurable self-conditioning refresh mode
+      - ATI support
+      - EDM stochastic churn support
+      - continuous binary and continuous one-hot token support
+    """
+
+    def __init__(self, model, forward_process, cfg):
+        self.model = model
+        self.cfg = cfg
+        self.device = _infer_model_device(model, cfg.device)
+
+        self.sc_enabled = bool(getattr(self.cfg.model, "self_condition", False))
+        self.data_center = float(getattr(self.cfg.diffusion.continuous, "data_center", 0.5))
+
+        self.repr_mode = str(getattr(cfg.data, "representation", "binary")).lower()
+        self.is_cont_tokens = (self.repr_mode == "tokens")
+        self.vocab_size = int(getattr(cfg.data, "vocab_size", 1)) if self.is_cont_tokens else 1
+
+        self.sigmas = SigmaSchedule(forward_process, self.cfg, self.device)
+
+    @torch.no_grad()
+    def sample(
+        self,
+        num_samples: int,
+        seq_len: int,
+        *,
+        conditioning_prefix_full: Optional[torch.Tensor] = None,
+        cond_prefix_mask: Optional[torch.Tensor] = None,
+        conditioning_prefix: Optional[torch.Tensor] = None,
+        cond_len_bits: Optional[int] = None,
+        guidance_scale: Optional[float] = None,
+        schedule: Optional[str] = None,
+        num_steps: Optional[int] = None,
+        entropic_blend_alpha: Optional[float] = None,
+        entropy_run_dir: Optional[Path] = None,
+        sigma_min_override: Optional[float] = None,
+        sigma_max_override: Optional[float] = None,
+        sc_refresh_mode: str = "refined",
+        ati_eta: Optional[float] = None,
+        return_probs: bool = False,
+        progress: bool = True,
+    ):
+        sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
+        ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
+
+        B = int(num_samples)
+        S = int(seq_len)
+
+        sigmas = self.sigmas.prepare(
+            schedule=schedule,
+            num_steps=num_steps,
+            entropic_blend_alpha=entropic_blend_alpha,
+            entropy_run_dir=entropy_run_dir,
+            sigma_min_override=sigma_min_override,
+            sigma_max_override=sigma_max_override,
+        )
+        stoch_cfg = self.sigmas.resolve_stochastic_cfg(
+            entropy_run_dir=entropy_run_dir,
+            sigma_min_override=sigma_min_override,
+            sigma_max_override=sigma_max_override,
+        )
+        sigma0 = sigmas[0]
+
+        cond_enabled, prefix_full, prefix_mask, null_full = _build_mask_conditioning(
+            cfg=self.cfg,
+            B=B,
+            S=S,
+            device=self.device,
+            conditioning_prefix_full=conditioning_prefix_full,
+            cond_prefix_mask=cond_prefix_mask,
+            conditioning_prefix=conditioning_prefix,
+            cond_len_bits=cond_len_bits,
+            is_cont_tokens=self.is_cont_tokens,
+            vocab_size=self.vocab_size,
+        )
+
+        if self.is_cont_tokens:
+            x = torch.randn(B, S, self.vocab_size, device=self.device, dtype=torch.float32) * sigma0
+        else:
+            x = torch.randn(B, S, device=self.device, dtype=torch.float32) * sigma0
+        x = x + self.data_center
+
+        if cond_enabled:
+            _clamp_mask_(x, prefix_full, prefix_mask)
+
+        if self.sc_enabled:
+            x0_hat = torch.zeros_like(x)
+            if cond_enabled:
+                _clamp_mask_(x0_hat, prefix_full, prefix_mask)
+        else:
+            x0_hat_c = x0_hat_u = torch.zeros_like(x)
+            x0_hat = torch.zeros_like(x)
+
+        callback = NotFinishedLogger(
+            write_path=self.cfg.data_out,
+            batch_size=num_samples,
+            max_iter=self.cfg.pi_config.max_iter,
+            end_condition=self.cfg.pi_config.interval[1]
+        )
+        denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
+
+        sde = construct_churn_sde(
+            denoiser=denoiser,
+            N=num_steps,
+            S_churn=stoch_cfg.s_churn,
+            S_min=stoch_cfg.s_tmin,
+            S_max=stoch_cfg.s_tmax,
+        ).to(self.device)
+
+        solver = PISolver(
+            sde=sde,
+            **self.cfg.pi_config
+        ).to(self.device)
+
+        return solver.solve(x, callback=callback)
+
+
+class PIDenoiser:
+
+    def __init__(self, model, callback: NotFinishedLogger, cfg, x0_hat, sc_enabled: bool = True, is_cont_tokens: bool = False):
+        self._sc_enabled = sc_enabled
+        self._x0_hat = x0_hat
+        self._not_finished = None
+        self._model = model
+        self._callback = callback
+        self._cfg = cfg
+        self._is_cont_tokens = is_cont_tokens
+
+    def __call__(self, x, t, _):
+        t = t.reshape(-1)
+        print(self._callback.get_not_finished(), self._callback.get_not_finished().shape, self._x0_hat.shape)
+        logits = _model_logits_continuous(self._model, self._cfg, x, t, self._x0_hat[self._callback.get_not_finished()])
+        probs = logits_to_x0_hat(
+            logits,
+            dtype=x.dtype,
+            is_cont_tokens=self._is_cont_tokens,
+        )
+
+        score_cur = _score_from_probs(
+            probs,
+            x,
+            t,
+            is_cont_tokens=self._is_cont_tokens,
+        )
+        d_cur = -t * score_cur
+
+        if self._sc_enabled:
+            self._x0_hat = probs.clone()
+        return d_cur
+
+
+class NotFinishedLogger(PIDataLogger):
+
+    def __init__(self, write_path: str, max_iter: int = 1000, batch_size: int = 64, device: torch.device | str = "cpu", end_condition = 0):
+        super().__init__(write_path, max_iter, batch_size, device)
+        self._end_condition = end_condition
+
+    def get_not_finished(self):
+        if self._i == 0:
+            return torch.ones_like(self._ts[:, 0], dtype=torch.bool)
+        return self._ts[:, self._i - 1] > self._end_condition

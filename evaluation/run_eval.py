@@ -3,6 +3,11 @@ import os
 # Fix for some torch.compile interactions with CUDA Graphs
 os.environ.setdefault("TORCHINDUCTOR_DISABLE_CUDAGRAPHS", "1")
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import argparse
 import json
 from datetime import datetime

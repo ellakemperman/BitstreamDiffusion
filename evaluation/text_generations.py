@@ -338,7 +338,7 @@ class SharedGenerationCache:
 
         key_dir = _short_cache_key_dir(cache_key)
         p = self.cache_root / checkpoint_name / split / key_dir
-        p.mkdir(parents=True, exist_ok=True)
+        # p.mkdir(parents=True, exist_ok=True)
         _write_cache_key_manifest(p, cache_key)
 
         return p / f"{_sanitize_tag(tag)}.jsonl"

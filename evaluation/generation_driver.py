@@ -340,6 +340,15 @@ def create_sampler(
             is_discrete=False,
         )
 
+    if name in {"pi", "proportional_integral", "adaptive"}:
+        from diffusion.continuous.samplers import PISampler
+
+        return SamplerBundle(
+            sampler=PISampler(model, proc, cfg),
+            schedule="proportional-integral",
+            is_discrete=False
+        )
+
     raise ValueError(f"Unknown sampler '{sampler_name}' for framework '{fw}'")
 
 
