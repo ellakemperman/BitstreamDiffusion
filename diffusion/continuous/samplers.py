@@ -13,7 +13,7 @@ from utils.ecc_secded import ecc_from_cfg, ecc_chunk_len
 from diffusion.continuous.logit_postprocess import _model_logits_continuous
 
 from pi_solvers.solver_lib import PISolver
-from pi_solvers.sde_lib import construct_churn_sde
+from pi_solvers.sde_lib import construct_churn_sde, EDMSDE
 from pi_solvers.utils.data_logger import PIDataLogger
 
 
@@ -2073,13 +2073,15 @@ class PISampler:
         )
         denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
 
-        sde = construct_churn_sde(
-            denoiser=denoiser,
-            N=num_steps,
-            S_churn=stoch_cfg.s_churn,
-            S_min=stoch_cfg.s_tmin,
-            S_max=stoch_cfg.s_tmax,
-        ).to(self.device)
+        # sde = construct_churn_sde(
+        #     denoiser=denoiser,
+        #     N=num_steps,
+        #     S_churn=stoch_cfg.s_churn,
+        #     S_min=stoch_cfg.s_tmin,
+        #     S_max=stoch_cfg.s_tmax,
+        # ).to(self.device)
+
+        sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
         solver = PISolver(
             sde=sde,
