@@ -2073,13 +2073,13 @@ class PISampler:
         )
         denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
 
-        # sde = construct_churn_sde(
-        #     denoiser=denoiser,
-        #     N=num_steps,
-        #     S_churn=stoch_cfg.s_churn,
-        #     S_min=stoch_cfg.s_tmin,
-        #     S_max=stoch_cfg.s_tmax,
-        # ).to(self.device)
+        sde = construct_churn_sde(
+            denoiser=denoiser,
+            N=num_steps,
+            S_churn=stoch_cfg.s_churn,
+            S_min=stoch_cfg.s_tmin,
+            S_max=stoch_cfg.s_tmax,
+        ).to(self.device)
 
         sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
@@ -2088,7 +2088,36 @@ class PISampler:
             **self.cfg.pi_config
         ).to(self.device)
 
-        return solver.solve(x, callback=callback)
+        x = solver.solve(x, callback=callback)
+        callback.write()
+
+        if return_probs:
+            sigma_final = _ati_shift_sigma_label(
+                sigmas[-1],
+                sigmas[-2] if len(sigmas) > 1 else None,
+                ati_eta,
+            )
+
+            sig_B = sigma_final.expand(B)
+            cond_in = x0_hat if self.sc_enabled else torch.zeros_like(x)
+
+            logits = _model_logits_continuous(
+                self.model,
+                self.cfg,
+                x,
+                sig_B,
+                cond_in,
+            )
+
+            probs = logits_to_x0_hat(
+                logits,
+                dtype=x.dtype,
+                is_cont_tokens=self.is_cont_tokens,
+            )
+
+            return x, probs
+
+        return x
 
 
 class PIDenoiser:
@@ -2104,7 +2133,7 @@ class PIDenoiser:
 
     def __call__(self, x, t, _):
         t = t.reshape(-1)
-        print(self._callback.get_not_finished(), self._callback.get_not_finished().shape, self._x0_hat.shape)
+        print(f"sigma: {torch.mean(t)}")
         logits = _model_logits_continuous(self._model, self._cfg, x, t, self._x0_hat[self._callback.get_not_finished()])
         probs = logits_to_x0_hat(
             logits,
@@ -2118,6 +2147,7 @@ class PIDenoiser:
             t,
             is_cont_tokens=self._is_cont_tokens,
         )
+        t = t.reshape(-1, 1)
         d_cur = -t * score_cur
 
         if self._sc_enabled:

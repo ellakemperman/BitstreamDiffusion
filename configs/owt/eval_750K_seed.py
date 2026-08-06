@@ -10,7 +10,7 @@ def get_config():
 
     cfg.framework = "continuous_score"
     cfg.experiment = "paper/unconditional_text/owt/continuous_rate_raw_binary_bits_1M"
-    cfg.device = "cuda"
+    cfg.device = "cuda:0"
 
     cfg.data = config_dict.ConfigDict()
     cfg.data.dataset = "OpenWebText"
@@ -169,7 +169,7 @@ def get_config():
     cfg.evaluation.external_ppl.hf_dtype = "bfloat16"
     cfg.evaluation.external_ppl.attn_implementation = "sdpa"
     cfg.evaluation.external_ppl.num_samples = 1024
-    cfg.evaluation.external_ppl.micro_batch_size = 512
+    cfg.evaluation.external_ppl.micro_batch_size = 128
     cfg.evaluation.external_ppl.samplers = ["pi"]
     cfg.evaluation.external_ppl.terminal_sigmas = [0.08]
     cfg.evaluation.external_ppl.guidance_scales = [0.0]
