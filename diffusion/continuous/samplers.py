@@ -2081,7 +2081,7 @@ class PISampler:
             S_max=stoch_cfg.s_tmax,
         ).to(self.device)
 
-        sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
+        # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
         solver = PISolver(
             sde=sde,
@@ -2151,7 +2151,7 @@ class PIDenoiser:
         d_cur = -t * score_cur
 
         if self._sc_enabled:
-            self._x0_hat = probs.clone()
+            self._x0_hat[self._callback.get_not_finished()] = probs.clone()
         return d_cur
 
 
