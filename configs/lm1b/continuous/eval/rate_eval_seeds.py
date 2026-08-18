@@ -183,7 +183,7 @@ def get_config():
 
     cfg.pi_config = {
         "tau_a": 0.06,
-        "tau_r": 2.2,
+        "tau_r": 2.13,
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,

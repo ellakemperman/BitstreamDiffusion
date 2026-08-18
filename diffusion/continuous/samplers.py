@@ -2102,6 +2102,8 @@ class PISampler:
         x = solver.solve(x, callback=callback)
         callback.write()
 
+        print(f"NFE: {sde.nfe / x.shape[0]}")
+
         if return_probs:
             sigma_final = _ati_shift_sigma_label(
                 sigmas[-1],
@@ -2159,7 +2161,7 @@ class PIDenoiser:
             is_cont_tokens=self._is_cont_tokens,
         )
         t = t.reshape(-1, 1)
-        d_cur = -t * score_cur
+        d_cur = t ** 2 * score_cur + x
 
         if self._sc_enabled:
             self._x0_hat[self._callback.get_not_finished()] = probs.clone()
