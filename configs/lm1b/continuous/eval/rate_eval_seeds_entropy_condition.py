@@ -80,7 +80,7 @@ def get_config():
     cfg.diffusion.continuous.data_center = 0.5
     cfg.diffusion.continuous.p_mean = -1.2
     cfg.diffusion.continuous.p_std = 1.2
-    cfg.diffusion.continuous.entropy_condition = False
+    cfg.diffusion.continuous.entropy_condition = True
 
     cfg.train = config_dict.ConfigDict()
     cfg.train.seed = eval_seed
@@ -187,7 +187,7 @@ def get_config():
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,
-        "h_start": 20,
+        "h_start": 0.01,
         "max_decrease": 0.2,
         "max_increase": 5,
         "max_iter": 1000

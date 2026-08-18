@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
+import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -13,7 +14,7 @@ from utils.ecc_secded import ecc_from_cfg, ecc_chunk_len
 from diffusion.continuous.logit_postprocess import _model_logits_continuous
 
 from pi_solvers.solver_lib import PISolver
-from pi_solvers.sde_lib import construct_churn_sde, EDMSDE
+from pi_solvers.sde_lib import construct_churn_sde, EDMSDE, LinearDriftSDE
 from pi_solvers.utils.data_logger import PIDataLogger
 
 
@@ -1985,6 +1986,7 @@ class PISampler:
 
         self.sc_enabled = bool(getattr(self.cfg.model, "self_condition", False))
         self.data_center = float(getattr(self.cfg.diffusion.continuous, "data_center", 0.5))
+        self.condition_on_entropy = bool(getattr(self.cfg.diffusion.continuous, "entropy_condition", False))
 
         self.repr_mode = str(getattr(cfg.data, "representation", "binary")).lower()
         self.is_cont_tokens = (self.repr_mode == "tokens")
@@ -2081,10 +2083,19 @@ class PISampler:
             S_max=stoch_cfg.s_tmax,
         ).to(self.device)
 
+        sigma_min = 0 if not sigma_min_override else sigma_min_override
+        sigma_max = 80 if not sigma_max_override else sigma_min_override
+
+        interval = (sigma_max, sigma_min)
+
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
+        if self.condition_on_entropy:
+            sde = EntropyWrapper(sde, sigmas)
+            interval = (1, 0)
 
         solver = PISolver(
             sde=sde,
+            interval=interval,
             **self.cfg.pi_config
         ).to(self.device)
 
@@ -2165,3 +2176,28 @@ class NotFinishedLogger(PIDataLogger):
         if self._i == 0:
             return torch.ones_like(self._ts[:, 0], dtype=torch.bool)
         return self._ts[:, self._i - 1] > self._end_condition
+
+
+class EntropyWrapper(LinearDriftSDE):
+
+    def __init__(self, sde: LinearDriftSDE, entropy_sigmas: torch.Tensor):
+        super().__init__()
+        self._sde = sde
+        self._entropy_sigmas = entropy_sigmas
+        self._base_coords = np.linspace(1, 0, entropy_sigmas.shape[0])
+
+    def entropic_to_sigma_time(self, t: torch.Tensor) -> torch.Tensor:
+        t_cpu = t.cpu().numpy()
+        return torch.Tensor(np.interp(t_cpu, self._base_coords, self._entropy_sigmas)).to(t.device)
+
+    def mu(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        return self._sde.mu(x, self.entropic_to_sigma_time(t))
+
+    def sigma(self, t: torch.Tensor) -> torch.Tensor:
+        return self._sde.sigma(self.entropic_to_sigma_time(t))
+
+    def drift(self, x: torch.Tensor, t: torch.Tensor, labels: torch.Tensor = None) -> torch.Tensor:
+        return self._sde.drift(x, self.entropic_to_sigma_time(t))
+
+    def diffusion(self, t: torch.Tensor) -> torch.Tensor:
+        return self._sde.diffusion(self.entropic_to_sigma_time(t))
