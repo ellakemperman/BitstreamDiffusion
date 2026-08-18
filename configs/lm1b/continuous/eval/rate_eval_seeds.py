@@ -182,7 +182,7 @@ def get_config():
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_once = True
 
     cfg.pi_config = {
-        "tau_a": 0.06,
+        "tau_a": 0.09,
         "tau_r": 2.13,
         "alpha": 0.9,
         "ki": 0.3,
