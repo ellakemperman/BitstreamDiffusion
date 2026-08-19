@@ -285,7 +285,7 @@ export HF_HOME="$PWD/hf_cache"
 ```bash
 torchrun --standalone --nnodes=1 --nproc_per_node=1 \
   -m evaluation.run_eval \
-  --config configs/lm1b/continuous/eval/rate_eval_seeds_entropy.py \
+  --config configs/lm1b/continuous/eval/rate_eval_seeds_entropy_condition.py \
   --metrics external_ppl
 
 python -m evaluation.compute_entropy_from_caches \

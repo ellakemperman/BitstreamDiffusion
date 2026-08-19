@@ -2067,6 +2067,21 @@ class PISampler:
             x0_hat_c = x0_hat_u = torch.zeros_like(x)
             x0_hat = torch.zeros_like(x)
 
+        sigma_min = 0 if not sigma_min_override else sigma_min_override
+        sigma_max = 80 if not sigma_max_override else sigma_min_override
+
+        interval = (sigma_max, sigma_min)
+
+        if self.condition_on_entropy:
+            interval = (1, 0)
+
+        callback = NotFinishedLogger(
+            write_path=self.cfg.data_out,
+            batch_size=num_samples,
+            max_iter=self.cfg.pi_config.max_iter,
+            end_condition=interval[1]
+        )
+
         denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
 
         sde = construct_churn_sde(
@@ -2077,22 +2092,10 @@ class PISampler:
             S_max=stoch_cfg.s_tmax,
         ).to(self.device)
 
-        sigma_min = 0 if not sigma_min_override else sigma_min_override
-        sigma_max = 80 if not sigma_max_override else sigma_min_override
-
-        interval = (sigma_max, sigma_min)
-
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
+
         if self.condition_on_entropy:
             sde = EntropyWrapper(sde, sigmas)
-            interval = (1, 0)
-
-        callback = NotFinishedLogger(
-            write_path=self.cfg.data_out,
-            batch_size=num_samples,
-            max_iter=self.cfg.pi_config.max_iter,
-            end_condition=self.cfg.pi_config.interval[1]
-        )
 
         solver = PISolver(
             sde=sde,
