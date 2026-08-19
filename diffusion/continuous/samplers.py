@@ -2067,12 +2067,6 @@ class PISampler:
             x0_hat_c = x0_hat_u = torch.zeros_like(x)
             x0_hat = torch.zeros_like(x)
 
-        callback = NotFinishedLogger(
-            write_path=self.cfg.data_out,
-            batch_size=num_samples,
-            max_iter=self.cfg.pi_config.max_iter,
-            end_condition=self.cfg.pi_config.interval[1]
-        )
         denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
 
         sde = construct_churn_sde(
@@ -2092,6 +2086,13 @@ class PISampler:
         if self.condition_on_entropy:
             sde = EntropyWrapper(sde, sigmas)
             interval = (1, 0)
+
+        callback = NotFinishedLogger(
+            write_path=self.cfg.data_out,
+            batch_size=num_samples,
+            max_iter=self.cfg.pi_config.max_iter,
+            end_condition=self.cfg.pi_config.interval[1]
+        )
 
         solver = PISolver(
             sde=sde,
