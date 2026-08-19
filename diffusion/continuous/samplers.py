@@ -2095,7 +2095,7 @@ class PISampler:
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
         if self.condition_on_entropy:
-            sde = EntropyWrapper(sde, sigmas)
+            sde = EntropyWrapper(sde, torch.concat([sigmas, torch.Tensor(sigma_min)]))
 
         solver = PISolver(
             sde=sde,
