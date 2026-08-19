@@ -2190,7 +2190,7 @@ class EntropyWrapper(LinearDriftSDE):
         super().__init__()
         self._sde = sde
         self._entropy_sigmas = np.flip(entropy_sigmas.cpu().numpy())
-        self._base_coords = np.linspace(1, 0, entropy_sigmas.shape[0])
+        self._base_coords = np.linspace(0, 1, entropy_sigmas.shape[0])
 
     def entropic_to_sigma_time(self, t: torch.Tensor) -> torch.Tensor:
         t_cpu = t.cpu().numpy()
@@ -2216,3 +2216,7 @@ class EntropyWrapper(LinearDriftSDE):
              labels: torch.Tensor = None
              ) -> torch.Tensor:
         return self._sde.step(x, self.entropic_to_sigma_time(t), dt, w, labels)
+
+    @property
+    def nfe(self):
+        return self._sde.nfe
