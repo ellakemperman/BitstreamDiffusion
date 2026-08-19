@@ -2215,7 +2215,10 @@ class EntropyWrapper(LinearDriftSDE):
              w: torch.Tensor = None,
              labels: torch.Tensor = None
              ) -> torch.Tensor:
-        return self._sde.step(x, self.entropic_to_sigma_time(t), dt, w, labels)
+        entropic_t = self.entropic_to_sigma_time(t)
+        entropic_t_new = self.entropic_to_sigma_time(t + dt)
+        entropic_dt = entropic_t_new - entropic_t
+        return self._sde.step(x, entropic_t, entropic_dt, w, labels)
 
     @property
     def nfe(self):
