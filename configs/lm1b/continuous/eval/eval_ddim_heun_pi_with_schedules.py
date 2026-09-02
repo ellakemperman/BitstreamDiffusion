@@ -70,7 +70,7 @@ def get_config():
         qlo: float = 0.10,
         qhi: float = 0.90,
         tag_note: str = "",
-        pi_config: dict = None,
+        pi_params: dict = None,
         pi_schedule_path: str = None
     ):
         spec = config_dict.ConfigDict()
@@ -81,7 +81,7 @@ def get_config():
         spec.stochastic_enabled = bool(stochastic_enabled)
         spec.tag_note = str(tag_note)
 
-        spec.pi_config = pi_config
+        spec.pi_params = pi_params
         spec.pi_schedule_path = pi_schedule_path
 
         if stochastic_enabled:
@@ -136,7 +136,7 @@ def get_config():
                 f"schedule_pi_nfe{nfe}"
                 f"_q0.10_0.90_gamma{gamma}"
             ),
-            pi_config=pi_params(tau_rel),
+            pi_params=pi_params(tau_rel),
             pi_schedule_path=out_paths[nfe]
         )
 

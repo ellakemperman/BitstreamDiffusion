@@ -2098,7 +2098,7 @@ class PISampler:
         callback = NotFinishedLogger(
             write_path=pi_schedule_path,
             batch_size=num_samples,
-            max_iter=pi_params.max_iter,
+            max_iter=pi_params["max_iter"],
             end_condition=interval[1]
         )
 
