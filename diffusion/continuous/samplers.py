@@ -2093,10 +2093,12 @@ class PISampler:
 
         pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
 
+        pi_params = pi_params if pi_params is not None else self.cfg.pi_config
+
         callback = NotFinishedLogger(
             write_path=pi_schedule_path,
             batch_size=num_samples,
-            max_iter=self.cfg.pi_config.max_iter,
+            max_iter=pi_params.max_iter,
             end_condition=interval[1]
         )
 
@@ -2113,8 +2115,6 @@ class PISampler:
         ).to(self.device)
 
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
-
-        pi_params = pi_params if pi_params is not None else self.cfg.pi_config
 
         if self.condition_on_entropy:
             sde = EntropyWrapper(sde, sigmas)
