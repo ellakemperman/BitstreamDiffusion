@@ -4,13 +4,13 @@ from ml_collections import config_dict
 
 def get_config():
     cfg = config_dict.ConfigDict()
-    
+
     # Grab the seed from the bash environment (default to 42)
     eval_seed = int(os.environ.get("EVAL_SEED", 42))
 
     cfg.framework = "continuous_score"
     cfg.experiment = "paper/unconditional_text/lm1b/continuous_rate_raw_binary_bits_1M_edm_weighting"
-    cfg.device = "cuda"
+    cfg.device = "cuda:9"
 
     cfg.data = config_dict.ConfigDict()
     cfg.data.dataset = "LM1B"
@@ -94,7 +94,7 @@ def get_config():
     cfg.train.batch_size = 512
 
     ckpt_name = "step=001000000.pt"
-    
+
     cfg.evaluation = config_dict.ConfigDict()
     cfg.evaluation.checkpoint_path = f"runs/{cfg.experiment}/checkpoints/{ckpt_name}"
     # Entropy-rate schedule artefacts that pair with the released checkpoint.
@@ -103,7 +103,7 @@ def get_config():
     # GenPPL by ~40 points (see Figure 4 in the paper appendix).
     cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     # Restored to original output directory
-    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_cleanup_smoketest"
+    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_cleanup_smoketest_pi_entropy"
     cfg.evaluation.samples_dir = f"{cfg.evaluation.out_dir}/samples"
     cfg.evaluation.results_csv = f"{cfg.evaluation.out_dir}/results.csv"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"
@@ -113,7 +113,7 @@ def get_config():
     cfg.evaluation.num_sampling_steps = 255
     cfg.evaluation.use_compile = True
     cfg.evaluation.compile_mode = "default"
-    
+
     cfg.evaluation.compile = config_dict.ConfigDict()
     cfg.evaluation.compile.warmup = False
     cfg.evaluation.compile.warmup_steps = 0
@@ -182,8 +182,8 @@ def get_config():
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_once = True
 
     cfg.pi_config = {
-        "tau_a": 0.06,
-        "tau_r": 2.2,
+        "tau_a": 0.09,
+        "tau_r": 1.28,
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,
@@ -192,6 +192,6 @@ def get_config():
         "max_increase": 5,
         "max_iter": 1000
     }
-    cfg.data_out = "data/text_data/pi_files/"
+    cfg.data_out = f"{cfg.evaluation.out_dir}pi_files/"
 
     return cfg

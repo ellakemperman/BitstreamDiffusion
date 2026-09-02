@@ -322,6 +322,24 @@ def create_sampler(
             is_discrete=False,
         )
 
+    if name in {"heun_entropic"}:
+        from diffusion.continuous.samplers import HeunSampler
+
+        return SamplerBundle(
+            sampler=HeunSampler(model, proc, cfg),
+            schedule="karras",
+            is_discrete=False,
+        )
+
+    if name in {"heun_pi"}:
+        from diffusion.continuous.samplers import HeunSampler
+
+        return SamplerBundle(
+            sampler=HeunSampler(model, proc, cfg),
+            schedule="pi",
+            is_discrete=False,
+        )
+
     if name in {"ddim", "ddim_entropic", "entropic"}:
         from diffusion.continuous.samplers import DDIMSampler
 
@@ -340,12 +358,21 @@ def create_sampler(
             is_discrete=False,
         )
 
+    if name in {"ddim_pi"}:
+        from diffusion.continuous.samplers import DDIMSampler
+
+        return SamplerBundle(
+            sampler=DDIMSampler(model, proc, cfg),
+            schedule="pi",
+            is_discrete=False,
+        )
+
     if name in {"pi", "proportional_integral", "adaptive"}:
         from diffusion.continuous.samplers import PISampler
 
         return SamplerBundle(
             sampler=PISampler(model, proc, cfg),
-            schedule="proportional-integral",
+            schedule="pi-integral",
             is_discrete=False
         )
 
@@ -656,6 +683,9 @@ class GenerationDriver:
             sc_refresh_mode = str(spec.get("sc_refresh_mode", "refined"))
             ati_eta = float(spec.get("ati_eta", _default_ati_eta(self.cfg)))
             tag = str(spec["tag"])
+
+            pi_params = spec.get("pi_config", {})
+            pi_schedule_path = str(spec.get("pi_data_out", ""))
 
             if tag in results:
                 raise ValueError(
@@ -1055,6 +1085,8 @@ class GenerationDriver:
                                         ati_eta=float(ati_eta),
                                         return_probs=True,
                                         progress=show_prog,
+                                        pi_params=pi_params,
+                                        pi_schedule_path=pi_schedule_path
                                     )
 
                         except TypeError as e:
@@ -1080,6 +1112,8 @@ class GenerationDriver:
                                             ati_eta=float(ati_eta),
                                             return_probs=True,
                                             progress=show_prog,
+                                            pi_params=pi_params,
+                                            pi_schedule_path=pi_schedule_path
                                         )
                             else:
                                 curr_bs = end - i
@@ -1127,6 +1161,8 @@ class GenerationDriver:
                                                     ati_eta=float(ati_eta),
                                                     return_probs=True,
                                                     progress=show_prog,
+                                                    pi_params=pi_params,
+                                                    pi_schedule_path=pi_schedule_path
                                                 )
                                             except TypeError:
                                                 _, p_sub = sampler.sample(
@@ -1144,6 +1180,8 @@ class GenerationDriver:
                                                     ati_eta=float(ati_eta),
                                                     return_probs=True,
                                                     progress=show_prog,
+                                                    pi_params=pi_params,
+                                                    pi_schedule_path=pi_schedule_path
                                                 )
 
                                     probs_chunk.index_copy_(0, idx, p_sub.to(dtype=torch.float32))

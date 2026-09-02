@@ -881,6 +881,7 @@ class SigmaSchedule:
         entropy_run_dir: Optional[Path] = None,
         sigma_min_override: Optional[float] = None,
         sigma_max_override: Optional[float] = None,
+        pi_schedule_path: str = None,
     ) -> torch.Tensor:
         schedule_name = schedule if schedule is not None else getattr(
             self.cfg.evaluation, "schedule", "karras"
@@ -908,6 +909,10 @@ class SigmaSchedule:
 
         if schedule_name == "karras":
             return self._karras_schedule(N, sigma_min=sigma_min, sigma_max=sigma_max)
+
+        if schedule_name == "pi":
+            pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
+            return get_pi_schedule(N, n_ode_steps=1, t_max=sigma_max, t_min=sigma_min, t_ode=sigma_min, pi_paths_file=pi_schedule_path)
 
         if schedule_name == "entropic":
             _, cdf, sigmas_base = self._load_entropy_tables(entropy_run_dir=entropy_run_dir)
@@ -1002,6 +1007,7 @@ class HeunSampler:
         ati_eta: Optional[float] = None,
         return_probs: bool = False,
         progress: bool = True,
+        pi_schedule_path: str = None,
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
         ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
@@ -1016,12 +1022,16 @@ class HeunSampler:
             entropy_run_dir=entropy_run_dir,
             sigma_min_override=sigma_min_override,
             sigma_max_override=sigma_max_override,
+            pi_schedule_path=pi_schedule_path
         )
         stoch_cfg = self.sigmas.resolve_stochastic_cfg(
             entropy_run_dir=entropy_run_dir,
             sigma_min_override=sigma_min_override,
             sigma_max_override=sigma_max_override,
         )
+        stoch_cfg.s_churn /= 2
+        print(f"S_churn: {stoch_cfg.s_churn}, num_steps {num_steps}")
+
         sigma0 = sigmas[0]
 
         cond_enabled, prefix_full, prefix_mask, null_full = _build_mask_conditioning(
@@ -1552,6 +1562,7 @@ class DDIMSampler:
         ati_eta: Optional[float] = None,
         return_probs: bool = False,
         progress: bool = True,
+        pi_schedule_path: str = None
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
         ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
@@ -1566,6 +1577,7 @@ class DDIMSampler:
             entropy_run_dir=entropy_run_dir,
             sigma_min_override=sigma_min_override,
             sigma_max_override=sigma_max_override,
+            pi_schedule_path=pi_schedule_path
         )
         stoch_cfg = self.sigmas.resolve_stochastic_cfg(
             entropy_run_dir=entropy_run_dir,
@@ -2015,6 +2027,8 @@ class PISampler:
         ati_eta: Optional[float] = None,
         return_probs: bool = False,
         progress: bool = True,
+        pi_config: dict = None,
+        pi_schedule_path: str = None,
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
         ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
@@ -2075,8 +2089,10 @@ class PISampler:
         if self.condition_on_entropy:
             interval = (1, 0)
 
+        pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
+
         callback = NotFinishedLogger(
-            write_path=self.cfg.data_out,
+            write_path=pi_schedule_path,
             batch_size=num_samples,
             max_iter=self.cfg.pi_config.max_iter,
             end_condition=interval[1]
@@ -2084,9 +2100,11 @@ class PISampler:
 
         denoiser = PIDenoiser(self.model, callback, self.cfg, x0_hat, self.sc_enabled, self.is_cont_tokens)
 
+        print(f"n_steps: {num_steps}\nS_churn{stoch_cfg.s_churn}\nS_min={stoch_cfg.s_tmin}\nS_max={stoch_cfg.s_tmax}")
+
         sde = construct_churn_sde(
             denoiser=denoiser,
-            N=num_steps,
+            N=(num_steps + 1) // 2,
             S_churn=stoch_cfg.s_churn,
             S_min=stoch_cfg.s_tmin,
             S_max=stoch_cfg.s_tmax,
@@ -2094,13 +2112,15 @@ class PISampler:
 
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
-        if self.condition_on_entropy:
-            sde = EntropyWrapper(sde, torch.concat([sigmas, torch.Tensor([sigma_min]).to(self.device)]))
+        pi_config = pi_config if pi_config is not None else self.cfg.pi_config
 
+        if self.condition_on_entropy:
+            sde = EntropyWrapper(sde, sigmas)
+            print("Entropy")
         solver = PISolver(
             sde=sde,
             interval=interval,
-            **self.cfg.pi_config
+            **pi_config
         ).to(self.device)
 
         x = solver.solve(x, callback=callback)
