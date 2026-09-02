@@ -6,6 +6,8 @@ from configs.lm1b.continuous.rate_bits_1M_edm_weight import get_config as get_ba
 def get_config():
     cfg = get_base_config()
 
+    cfg.device = "cuda:1"
+
     # ------------------------------------------------------------------
     # Evaluation identity
     # ------------------------------------------------------------------

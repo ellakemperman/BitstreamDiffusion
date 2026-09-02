@@ -337,6 +337,9 @@ def build_sampling_specs(
     for base in base_specs:
         sampler_name = str(getattr(base, "sampler_name"))
 
+        pi_params = dict(getattr(base, "pi_params", {}))
+        pi_schedule_path = str(getattr(base, "pi_schedule_path", ""))
+
         target_nfes = list(getattr(base, "target_nfes", global_target_nfes))
         if len(target_nfes) == 0:
             continue
@@ -403,6 +406,8 @@ def build_sampling_specs(
                                     num_steps=int(num_steps),
                                     terminal_sigma=float(sigma),
                                     guidance_scale=float(gs),
+                                    pi_params=pi_params,
+                                    pi_schedule_path=pi_schedule_path,
                                 )
 
                                 # Copy scalar stochastic fields from base, then overwrite
