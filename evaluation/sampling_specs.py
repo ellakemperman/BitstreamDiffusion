@@ -338,7 +338,6 @@ def build_sampling_specs(
         sampler_name = str(getattr(base, "sampler_name"))
 
         pi_params = getattr(base, "pi_params", {})
-        print(base)
         pi_schedule_path = str(getattr(base, "pi_schedule_path", ""))
 
         target_nfes = list(getattr(base, "target_nfes", global_target_nfes))

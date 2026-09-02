@@ -2094,7 +2094,6 @@ class PISampler:
         pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
 
         pi_params = pi_params if pi_params is not None else self.cfg.pi_config
-        print(pi_params)
         callback = NotFinishedLogger(
             write_path=pi_schedule_path,
             batch_size=num_samples,

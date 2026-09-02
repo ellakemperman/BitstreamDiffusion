@@ -113,7 +113,7 @@ def get_config():
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,
-        "h_start": 0.01,
+        "h_start": 20,
         "max_decrease": 0.2,
         "max_increase": 5,
         "max_iter": 1000

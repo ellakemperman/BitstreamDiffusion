@@ -684,7 +684,7 @@ class GenerationDriver:
             ati_eta = float(spec.get("ati_eta", _default_ati_eta(self.cfg)))
             tag = str(spec["tag"])
 
-            pi_params = spec.get("pi_config", {})
+            pi_params = spec.get("pi_params", {})
             pi_schedule_path = str(spec.get("pi_data_out", ""))
 
             if tag in results:
