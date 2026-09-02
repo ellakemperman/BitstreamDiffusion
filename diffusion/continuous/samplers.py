@@ -1008,6 +1008,7 @@ class HeunSampler:
         return_probs: bool = False,
         progress: bool = True,
         pi_schedule_path: str = None,
+        pi_params: dict = None,
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
         ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
@@ -1562,7 +1563,8 @@ class DDIMSampler:
         ati_eta: Optional[float] = None,
         return_probs: bool = False,
         progress: bool = True,
-        pi_schedule_path: str = None
+        pi_schedule_path: str = None,
+        pi_params: dict = None,
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
         ati_eta = _resolve_ati_eta(self.cfg, ati_eta)
@@ -2027,7 +2029,7 @@ class PISampler:
         ati_eta: Optional[float] = None,
         return_probs: bool = False,
         progress: bool = True,
-        pi_config: dict = None,
+        pi_params: dict = None,
         pi_schedule_path: str = None,
     ):
         sc_refresh_mode = _normalize_sc_refresh_mode(sc_refresh_mode)
@@ -2112,7 +2114,7 @@ class PISampler:
 
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
 
-        pi_config = pi_config if pi_config is not None else self.cfg.pi_config
+        pi_params = pi_params if pi_params is not None else self.cfg.pi_config
 
         if self.condition_on_entropy:
             sde = EntropyWrapper(sde, sigmas)
@@ -2120,7 +2122,7 @@ class PISampler:
         solver = PISolver(
             sde=sde,
             interval=interval,
-            **pi_config
+            **pi_params
         ).to(self.device)
 
         x = solver.solve(x, callback=callback)
