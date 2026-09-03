@@ -13,7 +13,7 @@ from tqdm import tqdm
 from utils.ecc_secded import ecc_from_cfg, ecc_chunk_len
 from diffusion.continuous.logit_postprocess import _model_logits_continuous
 
-from pi_solvers.solver_lib import PISolver
+from pi_solvers.solver_lib import PISolver, get_pi_schedule
 from pi_solvers.sde_lib import construct_churn_sde, EDMSDE, LinearDriftSDE
 from pi_solvers.utils.data_logger import PIDataLogger
 
@@ -912,7 +912,7 @@ class SigmaSchedule:
 
         if schedule_name == "pi":
             pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
-            return get_pi_schedule(N, n_ode_steps=1, t_max=sigma_max, t_min=sigma_min, t_ode=sigma_min, pi_paths_file=pi_schedule_path)
+            return get_pi_schedule(N, n_ode_steps=1, t_max=sigma_max, t_min=sigma_min, t_ode=sigma_min, pi_paths_file=pi_schedule_path).to(self.cfg.device)
 
         if schedule_name == "entropic":
             _, cdf, sigmas_base = self._load_entropy_tables(entropy_run_dir=entropy_run_dir)
@@ -2092,8 +2092,8 @@ class PISampler:
             interval = (1, 0)
 
         pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
+        pi_params = pi_params if pi_params is not None and pi_params != {} else self.cfg.pi_config
 
-        pi_params = pi_params if pi_params is not None else self.cfg.pi_config
         callback = NotFinishedLogger(
             write_path=pi_schedule_path,
             batch_size=num_samples,
@@ -2107,7 +2107,7 @@ class PISampler:
 
         sde = construct_churn_sde(
             denoiser=denoiser,
-            N=(num_steps + 1) // 2,
+            N=num_steps,
             S_churn=stoch_cfg.s_churn,
             S_min=stoch_cfg.s_tmin,
             S_max=stoch_cfg.s_tmax,

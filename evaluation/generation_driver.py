@@ -685,7 +685,7 @@ class GenerationDriver:
             tag = str(spec["tag"])
 
             pi_params = spec.get("pi_params", {})
-            pi_schedule_path = str(spec.get("pi_data_out", ""))
+            pi_schedule_path = str(spec.get("pi_schedule_path", ""))
 
             if tag in results:
                 raise ValueError(

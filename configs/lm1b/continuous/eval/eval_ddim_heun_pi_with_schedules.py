@@ -18,6 +18,7 @@ def get_config():
     cfg.evaluation.results_csv = (
         f"{cfg.evaluation.out_dir}/results_schedule_ablation_nfe64_128_256.csv"
     )
+    cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"
     cfg.evaluation.external_ppl.shared_cache_dir = cfg.evaluation.shared_text_cache_dir
 

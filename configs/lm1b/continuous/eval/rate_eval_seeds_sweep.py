@@ -10,7 +10,7 @@ def get_config():
 
     cfg.framework = "continuous_score"
     cfg.experiment = "paper/unconditional_text/lm1b/continuous_rate_raw_binary_bits_1M_edm_weighting"
-    cfg.device = "cuda:9"
+    cfg.device = "cuda:0"
 
     cfg.data = config_dict.ConfigDict()
     cfg.data.dataset = "LM1B"
@@ -80,7 +80,7 @@ def get_config():
     cfg.diffusion.continuous.data_center = 0.5
     cfg.diffusion.continuous.p_mean = -1.2
     cfg.diffusion.continuous.p_std = 1.2
-    cfg.diffusion.continuous.entropy_condition = True
+    cfg.diffusion.continuous.entropy_condition = False
 
     cfg.train = config_dict.ConfigDict()
     cfg.train.seed = eval_seed
@@ -103,7 +103,7 @@ def get_config():
     # GenPPL by ~40 points (see Figure 4 in the paper appendix).
     cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     # Restored to original output directory
-    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep"
+    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_cleanup_pi_256NFE_rerun"
     cfg.evaluation.samples_dir = f"{cfg.evaluation.out_dir}/samples"
     cfg.evaluation.results_csv = f"{cfg.evaluation.out_dir}/results.csv"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"
@@ -134,19 +134,13 @@ def get_config():
     cfg.evaluation.sampling_sweep.target_nfes = [256]
     cfg.evaluation.sampling_sweep.specs = []
 
-    def add_spec(*, sampler_name, target_nfe, ati_eta, stochastic_enabled, gamma_target=None, s_noise=1.003, qlo=0.0, qhi=1.0,
-        pi_params: dict = None,
-        pi_schedule_path: str = None
-    ):
+    def add_spec(*, target_nfe, ati_eta, stochastic_enabled, gamma_target=None, s_noise=1.003, qlo=0.0, qhi=1.0):
         spec = config_dict.ConfigDict()
-        spec.sampler_name = sampler_name
+        spec.sampler_name = "pi"
         spec.sc_refresh_modes = ["carry"]
         spec.target_nfes = [int(target_nfe)]
         spec.ati_etas = [float(ati_eta)]
         spec.stochastic_enabled = bool(stochastic_enabled)
-
-        spec.pi_params = pi_params
-        spec.pi_schedule_path = pi_schedule_path
         if stochastic_enabled:
             num_intervals = max(1, int(target_nfe) - 1)
             spec.s_churn = float(gamma_target * num_intervals)
@@ -160,6 +154,10 @@ def get_config():
             spec.gamma_target = float(gamma_target)
         cfg.evaluation.sampling_sweep.specs.append(spec)
 
+    # Replaced ati_eta=0.6 with ati_eta=0.0 for all specs
+    add_spec(target_nfe=256, ati_eta=0.0, stochastic_enabled=True, gamma_target=0.185, s_noise=1.003, qlo=0.0, qhi=1.0)
+    add_spec(target_nfe=256, ati_eta=0.0, stochastic_enabled=True, gamma_target=0.200, s_noise=1.003, qlo=0.0, qhi=1.0)
+
     cfg.evaluation.external_ppl = config_dict.ConfigDict()
     cfg.evaluation.external_ppl.enabled = True
     cfg.evaluation.external_ppl.backend = "hf_causal_lm"
@@ -167,7 +165,7 @@ def get_config():
     cfg.evaluation.external_ppl.hf_dtype = "bfloat16"
     cfg.evaluation.external_ppl.attn_implementation = "sdpa"
     cfg.evaluation.external_ppl.num_samples = 1024
-    cfg.evaluation.external_ppl.micro_batch_size = 512
+    cfg.evaluation.external_ppl.micro_batch_size = 16
     cfg.evaluation.external_ppl.samplers = ["pi"]
     cfg.evaluation.external_ppl.terminal_sigmas = [0.08]
     cfg.evaluation.external_ppl.guidance_scales = [0.0]
@@ -183,9 +181,9 @@ def get_config():
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_max_rows = 8
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_once = True
 
-    pi_params = lambda tau_rel : {
-        "tau_a": 0.09,
-        "tau_r": tau_rel,
+    cfg.pi_config = {
+        "tau_a": 0.1,
+        "tau_r": 2.355,
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,
@@ -194,49 +192,6 @@ def get_config():
         "max_increase": 5,
         "max_iter": 1000
     }
-
-    tau_rels = [1.275, 1.1, 0.973]
-    nfes = [64, 128, 256]
-    out_paths = {nfe: f"{cfg.evaluation.out_dir}/pi_files/{nfe}/" for nfe in nfes}
-    gamma = 0.185
-
-    for tau_rel, nfe in zip(tau_rels, nfes):
-        add_spec(
-            target_nfe=nfe,
-            sampler_name="pi",
-            ati_eta=0.0,
-            stochastic_enabled=True,
-            gamma_target=gamma,
-            s_noise=1.003,
-            qlo=0,
-            qhi=1,
-            pi_params=pi_params(tau_rel),
-            pi_schedule_path=out_paths[nfe]
-        )
-    for nfe in [64, 128, 256]:
-        for sampler_name in ["ddim_entropic", "ddim_karras", "ddim_pi", "heun", "heun_entropic", "heun_pi"]:
-
-            # add_spec(
-            #     target_nfe=nfe,
-            #     sampler_name=sampler_name,
-            #     ati_eta=eta_val,
-            #     stochastic_enabled=False,
-            #     tag_note=f"schedule_{sampler_name}_nfe{nfe}_det",
-            # )
-
-            pi_schedule_path = out_paths[nfe] + "_t.csv"
-
-            add_spec(
-                target_nfe=nfe,
-                sampler_name=sampler_name,
-                ati_eta=0.0,
-                stochastic_enabled=True,
-                gamma_target=gamma,
-                s_noise=1.003,
-                qlo=0,
-                qhi=1,
-                pi_schedule_path=pi_schedule_path
-            )
+    cfg.data_out = f"{cfg.evaluation.out_dir}/pi_files/"
 
     return cfg
-
