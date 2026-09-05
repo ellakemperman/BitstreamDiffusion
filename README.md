@@ -289,7 +289,7 @@ torchrun --standalone --nnodes=1 --nproc_per_node=1 \
   --metrics external_ppl
 
 python -m evaluation.compute_entropy_from_caches \
-  --config configs/lm1b/continuous/eval/64NFE/rate_eval_seeds.py \
+  --config configs/lm1b/continuous/eval/ \
   --include_real
 ```
 
