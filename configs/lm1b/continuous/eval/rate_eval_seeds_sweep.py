@@ -184,7 +184,7 @@ def get_config():
     cfg.evaluation.external_ppl.debug_owt_gpt2id_bpe16_once = True
 
     pi_params = lambda tau_rel : {
-        "tau_a": 0.09,
+        "tau_a": 0.005,
         "tau_r": tau_rel,
         "alpha": 0.9,
         "ki": 0.3,
