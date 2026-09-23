@@ -103,7 +103,7 @@ def get_config():
     # GenPPL by ~40 points (see Figure 4 in the paper appendix).
     cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     # Restored to original output directory
-    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep"
+    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep0"
     cfg.evaluation.samples_dir = f"{cfg.evaluation.out_dir}/samples"
     cfg.evaluation.results_csv = f"{cfg.evaluation.out_dir}/results.csv"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"
@@ -189,13 +189,13 @@ def get_config():
         "alpha": 0.9,
         "ki": 0.3,
         "kp": 0.1,
-        "h_start": 20,
+        "h_start": 35,
         "max_decrease": 0.2,
         "max_increase": 5,
         "max_iter": 1000
     }
 
-    tau_rels = [1.275, 1.1, 0.973]
+    tau_rels = [0.0706, 0.06832, 0.066435]
     nfes = [64, 128, 256]
     out_paths = {nfe: f"{cfg.evaluation.out_dir}/pi_files/{nfe}/" for nfe in nfes}
     gamma = 0.185
