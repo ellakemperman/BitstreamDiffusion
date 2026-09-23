@@ -80,7 +80,7 @@ def get_config():
     cfg.diffusion.continuous.data_center = 0.5
     cfg.diffusion.continuous.p_mean = -1.2
     cfg.diffusion.continuous.p_std = 1.2
-    cfg.diffusion.continuous.entropy_condition = True
+    cfg.diffusion.continuous.entropy_condition = False
 
     cfg.train = config_dict.ConfigDict()
     cfg.train.seed = eval_seed
