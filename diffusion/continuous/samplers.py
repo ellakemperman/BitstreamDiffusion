@@ -912,7 +912,7 @@ class SigmaSchedule:
 
         if schedule_name == "pi":
             pi_schedule_path = pi_schedule_path if pi_schedule_path is not None else self.cfg.data_out
-            return get_pi_schedule(N, n_ode_steps=1, t_max=sigma_max, t_min=sigma_min, t_ode=sigma_min, pi_paths_file=pi_schedule_path).to(self.cfg.device)
+            return get_pi_schedule(N + 1, n_ode_steps=1, t_max=sigma_max, t_min=sigma_min, t_ode=sigma_min, pi_paths_file=pi_schedule_path).to(self.cfg.device).to(torch.float32)[:-1]
 
         if schedule_name == "entropic":
             _, cdf, sigmas_base = self._load_entropy_tables(entropy_run_dir=entropy_run_dir)
