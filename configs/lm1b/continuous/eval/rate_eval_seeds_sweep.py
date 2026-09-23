@@ -111,7 +111,7 @@ def get_config():
     cfg.evaluation.use_amp = True
     cfg.evaluation.amp_dtype = "bf16"
     cfg.evaluation.num_sampling_steps = 255
-    cfg.evaluation.use_compile = True
+    cfg.evaluation.use_compile = False
     cfg.evaluation.compile_mode = "default"
 
     cfg.evaluation.compile = config_dict.ConfigDict()
@@ -195,7 +195,7 @@ def get_config():
         "max_iter": 1000
     }
 
-    tau_rels = [0.0706, 0.06832, 0.066435]
+    tau_rels = [0.0708, 0.06842, 0.06646]
     nfes = [64, 128, 256]
     out_paths = {nfe: f"{cfg.evaluation.out_dir}/pi_files/{nfe}/" for nfe in nfes}
     gamma = 0.185
