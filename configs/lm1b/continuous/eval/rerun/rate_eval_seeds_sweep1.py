@@ -103,7 +103,7 @@ def get_config():
     # GenPPL by ~40 points (see Figure 4 in the paper appendix).
     cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     # Restored to original output directory
-    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep1"
+    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/rerun_evaluation_solver_schedule_nfe_sweep1"
     cfg.evaluation.samples_dir = f"{cfg.evaluation.out_dir}/samples"
     cfg.evaluation.results_csv = f"{cfg.evaluation.out_dir}/results.csv"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"
