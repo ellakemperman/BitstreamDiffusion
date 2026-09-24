@@ -6,11 +6,11 @@ def get_config():
     cfg = config_dict.ConfigDict()
 
     # Grab the seed from the bash environment (default to 42)
-    eval_seed = int(os.environ.get("EVAL_SEED", 42))
+    eval_seed = 41
 
     cfg.framework = "continuous_score"
     cfg.experiment = "paper/unconditional_text/lm1b/continuous_rate_raw_binary_bits_1M_edm_weighting"
-    cfg.device = "cuda:9"
+    cfg.device = "cuda:7"
 
     cfg.data = config_dict.ConfigDict()
     cfg.data.dataset = "LM1B"
@@ -103,7 +103,7 @@ def get_config():
     # GenPPL by ~40 points (see Figure 4 in the paper appendix).
     cfg.evaluation.entropy_run_dir = "assets/entropy_tables/lm1b"
     # Restored to original output directory
-    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep0"
+    cfg.evaluation.out_dir = f"runs/{cfg.experiment}/evaluation_solver_schedule_nfe_sweep2"
     cfg.evaluation.samples_dir = f"{cfg.evaluation.out_dir}/samples"
     cfg.evaluation.results_csv = f"{cfg.evaluation.out_dir}/results.csv"
     cfg.evaluation.shared_text_cache_dir = f"{cfg.evaluation.out_dir}/shared_text_cache"

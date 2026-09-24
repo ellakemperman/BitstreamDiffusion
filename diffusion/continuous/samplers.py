@@ -2110,7 +2110,7 @@ class PISampler:
             N=num_steps,
             S_churn=stoch_cfg.s_churn,
             S_min=stoch_cfg.s_tmin,
-            S_max=stoch_cfg.s_tmax,
+            S_max=100,
         ).to(self.device)
 
         # sde = EDMSDE().to(self.device).get_reverse_sde(denoiser)
