@@ -195,12 +195,13 @@ def get_config():
         "max_iter": 1000
     }
 
-    tau_rels = [0.0708, 0.06842, 0.06646]
+    tau_rels = [0.0888, 0.1017, 0.0896]
+    h_starts = [35, 20, 20]
     nfes = [64, 128, 256]
     out_paths = {nfe: f"{cfg.evaluation.out_dir}/pi_files/{nfe}/" for nfe in nfes}
     gamma = 0.185
 
-    for tau_rel, nfe in zip(tau_rels, nfes):
+    for tau_rel, nfe, h_start in zip(tau_rels, nfes, h_starts):
         add_spec(
             target_nfe=nfe,
             sampler_name="pi",
@@ -210,10 +211,11 @@ def get_config():
             s_noise=1.003,
             qlo=0,
             qhi=1,
-            pi_params=pi_params(tau_rel),
+            pi_params=pi_params(tau_rel, h_start),
             pi_schedule_path=out_paths[nfe]
         )
-    for nfe in [64, 128, 256]:
+
+    for nfe in nfes:
         for sampler_name in ["ddim_entropic", "ddim_karras", "ddim_pi", "heun", "heun_entropic", "heun_pi"]:
 
             # add_spec(
